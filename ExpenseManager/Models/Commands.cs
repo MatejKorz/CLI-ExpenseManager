@@ -5,6 +5,8 @@ public enum ECommands {
     Login,
     Nothing,
     AddExpense,
+    AddIncome,
+    AddCategory,
     Filter,
     DisplayBalance,
     Invalid,

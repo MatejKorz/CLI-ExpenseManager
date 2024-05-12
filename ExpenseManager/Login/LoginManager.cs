@@ -8,70 +8,49 @@ namespace ExpenseManager.Login;
 
 public class LoginManager {
     private DatabaseController _dbController;
+    private StarterPrinter _starterPrinter;
 
     public LoginManager(DatabaseController dbController) {
         _dbController = dbController;
+        _starterPrinter = new StarterPrinter();
+
     }
 
-    public void Register() {
-        string? username;
-        SecureString? password;
+    public async void Register() {
         string errString = "";
-        while (true) {
-            username = Printer.UsernamePrompt(errString);
-            if (username == null) { continue; }
+        var users = await _dbController.GetUsers();
 
-            if (_dbController.GetUser(username) != null) {
-                errString = "[ error ] user does not exist";
+        while (true) {
+            var (name, password) = _starterPrinter.UsernamePasswordPrompt(false, errString);
+            if (name == null || password == null) { return; }
+
+            var user = users.FirstOrDefault(u => u.Username == name);
+            if (user != null) {
+                errString = Utils.MakeErrorMessage("user already exists");
                 continue;
             }
-
+            _dbController.AddUser(new User(0, name, password));
             break;
         }
-
-        errString = "";
-        while (true) {
-            password = Printer.PasswordPrompt(errString + Constants.Username + username);
-            if (password == null || password.Length < 5) {
-                errString = "[ error ] password too weak";
-                continue;
-            }
-
-            break;
-        }
-
-        byte[] hashedPassword = PasswordManager.HashSecureString(password);
-
-        _dbController.AddUser(new User(0, username, Convert.ToBase64String(hashedPassword)));
     }
 
-    public int Login() {
-        string? username;
-        SecureString? password;
-        User? user;
+    public async Task<int> Login() {
         string errString = "";
+        var users = await _dbController.GetUsers();
 
         while (true) {
-            username = Printer.UsernamePrompt(errString);
-            if (username == null || (user = _dbController.GetUser(username)) == null || user.Id == null) {
-                errString = "[ error ] user does not exist";
+            var (name, password) = _starterPrinter.UsernamePasswordPrompt(true, errString);
+            if (name == null || password == null) { return -1; }
+
+            var user = users.FirstOrDefault(u => u.Username == name);
+            if (user == null) {
+                errString = Utils.MakeErrorMessage("user does not exist");
                 continue;
             }
 
-            break;
-        }
-
-        var cmpHash = user.Password;
-        errString = "";
-        while (true) {
-            password = Printer.PasswordPrompt(errString + Constants.Username + username);
-            errString = "[ error ] password incorrect";
-
-            if (password != null && PasswordManager.ComparePasswords(password, cmpHash)) {
-                break;
+            if (Equals(password, user.Password)) {
+                return user.Id;
             }
         }
-
-        return user.Id;
     }
 }

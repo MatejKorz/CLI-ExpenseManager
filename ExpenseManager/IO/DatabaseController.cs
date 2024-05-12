@@ -1,5 +1,6 @@
 using ExpenseManager.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace ExpenseManager.IO;
 
@@ -7,6 +8,8 @@ public class MyAppContext : DbContext {
     private string _connectionString;
     public DbSet<User> Users { get; set; }
     public DbSet<Expense> Expenses { get; set; }
+
+    public DbSet<Category> Categories { get; set; }
 
     public MyAppContext(string connectionString) {
         _connectionString = connectionString;
@@ -34,16 +37,21 @@ public class DatabaseController {
         await _db.SaveChangesAsync();
     }
 
-    public User? GetUser(string username) {
-        return _db.Users.FirstOrDefault(u => u.Username == username);
-    }
-
     public User? GetUser(int id) {
         return _db.Users.FirstOrDefault(u => u.Id == id);
     }
 
-    public List<User> GetUsers() {
-        return _db.Users.ToList();
+    public async Task<List<User>> GetUsers() {
+        return await _db.Users.ToListAsync();
+    }
+
+    public Dictionary<int, string> GetUserCategories(int userId) {
+        return _db.Categories.Where(c => c.UserId == userId || c.UserId == 0).ToDictionary(c => c.Id, c => c.Name);
+    }
+
+    public async Task AddUserCategory(int userId, string categoryName) {
+        _db.Categories.Add(new Category(0, userId, categoryName));
+        await _db.SaveChangesAsync();
     }
 
     public async void AddExpense(Expense expense) {

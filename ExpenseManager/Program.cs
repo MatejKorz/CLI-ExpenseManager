@@ -1,25 +1,25 @@
-﻿using System.Globalization;
-using ExpenseManager.IO;
+﻿using ExpenseManager.IO;
 using ExpenseManager.Login;
 using ExpenseManager.Models;
 
 namespace ExpenseManager;
 
 class Program {
-    static void Main(string[] args) {
+    static async Task Main(string[] args) {
         var databaseController = new DatabaseController("./data.db");
         var loginManager = new LoginManager(databaseController);
-        int? loggedUserId = null;
+        int loggedUserId = -1;
+        StarterPrinter mainStarterPrinter = new StarterPrinter();
 
         while (true) {
             Console.Clear();
-            ECommands command = Printer.Startup();
+            ECommands command = mainStarterPrinter.Startup();
             switch (command) {
                 case ECommands.Register:
                     loginManager.Register();
                     break;
                 case ECommands.Login:
-                    loggedUserId = loginManager.Login();
+                    loggedUserId = await loginManager.Login();
                     break;
                 case ECommands.Quit:
                     // TODO free everything
@@ -30,20 +30,20 @@ class Program {
             }
 
             Console.Clear();
-            if (loggedUserId == null) {
+            if (loggedUserId == -1) {
                 continue;
             }
 
-            var loggedUser = databaseController.GetUser(loggedUserId.Value);
+            var loggedUser = databaseController.GetUser(loggedUserId);
             if (loggedUser == null) {
-                loggedUserId = null;
+                loggedUserId = -1;
                 continue;
             }
             var session = new UserSession(databaseController, loggedUser);
             session.RunSession();
 
 
-            loggedUserId = null;
+            loggedUserId = -1;
         }
     }
 }

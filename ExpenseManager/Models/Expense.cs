@@ -1,3 +1,3 @@
 namespace ExpenseManager.Models;
 
-public record Expense(int Id, int UserId, decimal Amount, Categories Category, string? Description, string DateTime);
+public record Expense(int Id, int UserId, decimal Amount, int CategoryId, string? Description, string DateTime);

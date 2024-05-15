@@ -9,13 +9,15 @@ public class UserSession {
     private readonly DatabaseController _controller;
     private readonly User _user;
     private List<Expense> _expenses;
-    private Dictionary<int, string> _categories;
+    private readonly Dictionary<int, string> _categories;
+    private Filter _filter;
 
     public UserSession(DatabaseController controller, User user) {
         _controller = controller;
         _user = user;
         _expenses = _controller.GetExpenses(user.Id);
-        _categories = _controller.GetUserCategories(user.Id);
+        _categories = _controller.GetUserCategories(user.Id).Result;
+        _filter = new Filter(_categories);
     }
 
     private decimal CalculateBalance() {
@@ -24,7 +26,7 @@ public class UserSession {
     }
 
     public async void RunSession() {
-        UserPrinter printer = new UserPrinter(_user, _categories);
+        UserPrinter printer = new UserPrinter(_user, in _categories, ref _filter);
         int currentExpenseIndex = 0;
         string errString = "";
         while (true) {
@@ -32,7 +34,8 @@ public class UserSession {
             printer.DisplayHeader(errString);
             errString = "";
 
-            ECommands command = printer.UserSession(_expenses, ref currentExpenseIndex);
+            var displayedExpenses = _expenses.Where(e => _filter.ExpenseBelongs(e)).ToList();
+            ECommands command = printer.UserSession(displayedExpenses, ref currentExpenseIndex);
             Expense? expense;
             switch (command) {
                 case ECommands.Invalid: errString = Utils.MakeErrorMessage("invalid key");
@@ -52,13 +55,20 @@ public class UserSession {
                     }
                     break;
                 case ECommands.Filter:
+                    var newFilter = printer.SetupFilter();
+                    _filter = newFilter;
+                    // must reset because numbers of expenses change
+                    currentExpenseIndex = 0;
                     break;
                 case ECommands.AddCategory:
                     string? categoryName = printer.AddCategory();
                     if (categoryName != null) {
                         await _controller.AddUserCategory(_user.Id, categoryName);
-                        _categories = _controller.GetUserCategories(_user.Id);
-                        printer._categories = _categories;
+                        var newCategory = await _controller.GetUserCategory(_user.Id, categoryName);
+                        if (newCategory != null) {
+                            _categories[newCategory.Id] = newCategory.Name;
+                        }
+                        _filter.UpdateFilterCategory(_categories);
                     }
                     break;
                 case ECommands.DisplayBalance:

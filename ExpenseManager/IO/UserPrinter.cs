@@ -6,11 +6,14 @@ namespace ExpenseManager.IO;
 
 public class UserPrinter {
     private User _user;
-    public Dictionary<int, string> _categories;
+    private Dictionary<int, string> _categories;
+    private Filter _filter;
 
-    public UserPrinter(User user, Dictionary<int, string> categories) {
+    public UserPrinter(User user, in Dictionary<int, string> categories, ref Filter filter) {
         _user = user;
         _categories = categories;
+        _filter = filter;
+
     }
 
     public void DisplayHeader(string error = "") {
@@ -32,7 +35,8 @@ public class UserPrinter {
         if (!selected) {
             Console.ForegroundColor = expense.Amount > 0 ? ConsoleColor.DarkGreen : ConsoleColor.Red;
         }
-        Console.Write($"{expense.Amount, +10}");
+        // TODO - FORMATING
+        Console.Write($"{expense.Amount, +10:0.00}");
         Console.ForegroundColor = foregroundInside;
         Console.WriteLine($" | {_categories[expense.CategoryId], +12} | {expense.DateTime, +16} | {expense.Description}");
         if (selected) {
@@ -123,7 +127,7 @@ public class UserPrinter {
             switch (key.Key) {
                 case ConsoleKey.UpArrow: activeIndex = int.Max(activeIndex - 1, 0);
                     break;
-                case ConsoleKey.DownArrow: activeIndex = int.Min(activeIndex + 1, options.Count);
+                case ConsoleKey.DownArrow: activeIndex = int.Min(activeIndex + 1, options.Count - 1);
                     break;
                 case ConsoleKey.RightArrow:
                     if (activeIndex == 1) {
@@ -136,12 +140,12 @@ public class UserPrinter {
                     }
                     break;
                 case ConsoleKey.Backspace:
-                    if (options[activeIndex] != null) {
+                    if (options[activeIndex] != null && options[activeIndex].Length > 0) {
                         options[activeIndex].Remove(options[activeIndex].Length - 1, 1);
                     }
                     break;
                 case Constants.EndKey: return null;
-                case ConsoleKey.Enter:
+                case Constants.ConfirmKey:
                     if (!decimal.TryParse(amountString.ToString(), out decimal amount)) {
                         errString = Utils.MakeErrorMessage("cannot parse amount");
                         break;
@@ -151,7 +155,7 @@ public class UserPrinter {
                     amount = income ? decimal.Abs(amount) : -decimal.Abs(amount);
                     DateTime dateTime;
                     if (!DateTime.TryParse(dateTimeString.ToString(), out dateTime)) {
-                        errString = Utils.MakeErrorMessage("cannot parse amount");
+                        errString = Utils.MakeErrorMessage("cannot parse date");
                         break;
                     }
 
@@ -179,7 +183,7 @@ public class UserPrinter {
             var key = Console.ReadKey();
             switch (key.Key) {
                 case Constants.EndKey : return null;
-                case ConsoleKey.Enter :
+                case Constants.ConfirmKey :
                     if (categoryName.ToString().Contains(' ')) {
                         errString = Utils.MakeErrorMessage("category can not contain space");
                         break;
@@ -192,6 +196,103 @@ public class UserPrinter {
                 case ConsoleKey.Backspace : categoryName.Remove(categoryName.Length - 1, 1); break;
                 default:
                     categoryName.Append(key.KeyChar);
+                    break;
+            }
+        }
+    }
+
+    private void DisplayFilterCategory(int id, string name, bool selected = false) {
+        var foreground = Console.ForegroundColor;
+        var background = Console.BackgroundColor;
+        if (selected) {
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.BackgroundColor = ConsoleColor.White;
+        }
+        Console.Write($"{name} ");
+        string symbol;
+        var foregoundInner = Console.ForegroundColor;
+        if (_filter.Categories[id]) {
+            Console.ForegroundColor = ConsoleColor.DarkGreen;
+            symbol = Constants.FilterCategorySelected;
+        } else {
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            symbol = Constants.FilterCategoryNotSelcted;
+        }
+        Console.WriteLine(symbol);
+        Console.ForegroundColor = foregoundInner;
+
+        if (selected) {
+            Console.ForegroundColor = foreground;
+            Console.BackgroundColor = background;
+        }
+    }
+    private void DisplayFilterCategories(int index) {
+        // dates are displayed above categories so not always should category be highlighted
+        int correctedIndex = int.Max(index, 0);
+        var (topIndex, bottomIndex) = (correctedIndex - Constants.CategoriesPerScreen / 2, correctedIndex + Constants.CategoriesPerScreen / 2);
+        if (_categories.Count < Constants.CategoriesPerScreen) {
+            topIndex = 0;
+            bottomIndex = _categories.Count;
+        } else if (topIndex < 0) {
+            bottomIndex += int.Abs(topIndex);
+            topIndex = 0;
+        } else if (bottomIndex >= _categories.Count) {
+            topIndex = _categories.Count - Constants.CategoriesPerScreen;
+            bottomIndex = _categories.Count;
+        }
+
+        for (int i = topIndex; i < bottomIndex; ++i) {
+            var (id, name) = _categories.ElementAt(i);
+            DisplayFilterCategory(id, name, i == index);
+        }
+    }
+
+    public Filter SetupFilter() {
+        string errString = "";
+        var datetimeFromString = new StringBuilder();
+        var datetimeToString = new StringBuilder();
+        int activeIndex = 0;
+        var originalFilter = _filter;
+
+        while (true) {
+            Console.Clear();
+            Console.WriteLine(Constants.FilterHeader);
+            Console.WriteLine(errString);
+            Console.WriteLine($"Date FROM: {datetimeFromString}");
+            Console.WriteLine($"Date TO:   {datetimeToString}");
+            DisplayFilterCategories(activeIndex - 2);
+
+            var key = Console.ReadKey();
+            switch (key.Key) {
+                case Constants.EndKey:
+                    _filter = originalFilter;
+                    return _filter;
+                case Constants.ConfirmKey: return _filter;
+                case ConsoleKey.UpArrow : activeIndex = int.Max(activeIndex - 1, 0); break;
+                case ConsoleKey.DownArrow : activeIndex = int.Min(activeIndex + 1, _categories.Count + 2 - 1); break;
+                case ConsoleKey.P :
+                    if (activeIndex >= 2) {
+                        var (id, value) = _filter.Categories.ElementAt(activeIndex - 2);
+                        _filter.Categories[id] = !value;
+                    }
+                    break;
+                case ConsoleKey.Backspace :
+                    if (activeIndex == 0 && datetimeFromString.Length > 0) {
+                        datetimeFromString.Remove(datetimeFromString.Length - 1, 1);
+                    } else if (activeIndex == 1 && datetimeToString.Length > 0) {
+                        datetimeToString.Remove(datetimeToString.Length - 1, 1);
+                    } else {
+                        errString = Utils.MakeErrorMessage("invalid key");
+                    }
+                    break;
+                default:
+                    if (activeIndex == 0) {
+                        datetimeFromString.Append(key.KeyChar);
+                    } else if (activeIndex == 1) {
+                        datetimeToString.Append(key.KeyChar);
+                    } else {
+                        errString = Utils.MakeErrorMessage("invalid key");
+                    }
                     break;
             }
         }

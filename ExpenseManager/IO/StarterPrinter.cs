@@ -63,7 +63,7 @@ public class StarterPrinter {
                 case ConsoleKey.DownArrow:
                     active = int.Min(1, active + 1);
                     break;
-                case ConsoleKey.Enter:
+                case Constants.ConfirmKey:
                     if (userStringBuild.Length < 1 || passwrdSecString.Length < 1) {
                         errString = Utils.MakeErrorMessage("empty fields");
                         break;
@@ -79,11 +79,11 @@ public class StarterPrinter {
 
                     break;
                 default:
+                    if (!char.IsLetterOrDigit(key.KeyChar) && !Constants.AllowedChars.Contains(key.KeyChar)) {
+                        errString = Utils.MakeErrorMessage($"only alphanumeric and {Constants.AllowedChars} chars allowed");
+                        break;
+                    }
                     if (active == 0) {
-                        if (!char.IsLetterOrDigit(key.KeyChar)) {
-                            errString = Utils.MakeErrorMessage("only alphanumeric characters allowed");
-                            break;
-                        }
                         userStringBuild.Append(key.KeyChar);
                     } else if (active == 1) {
                         passwrdSecString.AppendChar(key.KeyChar);

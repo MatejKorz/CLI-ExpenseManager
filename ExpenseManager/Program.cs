@@ -6,7 +6,8 @@ namespace ExpenseManager;
 
 class Program {
     static async Task Main(string[] args) {
-        var databaseController = new DatabaseController("./data.db");
+        string databasePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.db");
+        var databaseController = new DatabaseController(databasePath);
         var loginManager = new LoginManager(databaseController);
         int loggedUserId = -1;
         StarterPrinter mainStarterPrinter = new StarterPrinter();

@@ -45,8 +45,12 @@ public class DatabaseController {
         return await _db.Users.ToListAsync();
     }
 
-    public Dictionary<int, string> GetUserCategories(int userId) {
-        return _db.Categories.Where(c => c.UserId == userId || c.UserId == 0).ToDictionary(c => c.Id, c => c.Name);
+    public async Task<Category?> GetUserCategory(int id, string name) {
+        return await _db.Categories.Where(c => c.Name == name && (c.UserId == id || c.UserId == 0)).FirstOrDefaultAsync();
+    }
+
+    public async Task<Dictionary<int, string>> GetUserCategories(int userId) {
+        return await _db.Categories.Where(c => c.UserId == userId || c.UserId == 0).ToDictionaryAsync(c => c.Id, c => c.Name);
     }
 
     public async Task AddUserCategory(int userId, string categoryName) {

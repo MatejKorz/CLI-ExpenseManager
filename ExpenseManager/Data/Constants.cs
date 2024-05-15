@@ -1,9 +1,12 @@
 namespace ExpenseManager.Data;
 
 public static class Constants {
-    public const int ExpensePerScreen = 8;
+    public const int ExpensePerScreen = 12;
+    public const int CategoriesPerScreen = 10;
+    public const ConsoleKey ConfirmKey = ConsoleKey.Enter;
     public const ConsoleKey EndKey = ConsoleKey.Escape;
     public const string DateTimeFormat = "yyyy.MM.dd HH:mm";
+    public const string AllowedChars = "-_";
 
     public const string Replacable = "#1#";
 
@@ -15,15 +18,15 @@ public static class Constants {
 Login [L]
 Quit [{EndKey.ToString()}]";
 
-    public static readonly string RegisterHeader = $"Register | Confirm [Enter] | Quit [{EndKey.ToString()}]";
-    public static readonly string LoginHeader = $"Login | Confirm [Enter] | Quit [{EndKey.ToString()}]";
+    public static readonly string RegisterHeader = $"Register | Confirm [{ConfirmKey.ToString()}] | Quit [{EndKey.ToString()}]";
+    public static readonly string LoginHeader = $"Login | Confirm [{ConfirmKey.ToString()}] | Quit [{EndKey.ToString()}]";
 
     public const string Header = $"Logged as: {Replacable} | [A] Add expense | [I] Add income | [C] New category | [D] Display balance | [F] Filter";
 
     public const string ExpenseHeader = @"|  ID  |   AMOUNT   |   CATEGORY   |       TIME       | DESCRIPTION";
 
-    public static readonly string AddExpenseHeader = $"Adding Expense | [Enter] Confirm | [{EndKey.ToString()}] Quit ";
-    public static readonly string AddIncomeHeader = $"Adding Income | [Enter] Confirm | [{EndKey.ToString()}] Quit ";
+    public static readonly string AddExpenseHeader = $"Adding Expense | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
+    public static readonly string AddIncomeHeader = $"Adding Income | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
 
     private const string AddExpenseAmount = "Amount: ";
     private const string AddExpenseCategory = "Category: ";
@@ -33,9 +36,11 @@ Quit [{EndKey.ToString()}]";
 
     public const string DisplayAmount = $"Current balance is {Replacable}";
 
-    public static readonly string AddCategoryHeader = $"Adding Category | [Enter] Confirm | [{EndKey.ToString()}] Quit ";
+    public static readonly string AddCategoryHeader = $"Adding Category | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
 
-    public static readonly string FilterHeader = $"Setting filters | [Enter] Confirm | [{EndKey.ToString()}] Quit ";
+    public static readonly string FilterHeader = $"Setting filters | [P] Pick category | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
+    public const string FilterCategorySelected = "\u2714";
+    public const string FilterCategoryNotSelcted = "\ud800\udd02";
 }
 
 public static class Utils {

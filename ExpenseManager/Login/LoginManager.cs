@@ -51,6 +51,7 @@ public class LoginManager {
             if (Equals(password, user.Password)) {
                 return user.Id;
             }
+            errString = Utils.MakeErrorMessage("incorrect password");
         }
     }
 }

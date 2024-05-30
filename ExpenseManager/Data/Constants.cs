@@ -21,7 +21,7 @@ Quit [{EndKey.ToString()}]";
     public static readonly string RegisterHeader = $"Register | Confirm [{ConfirmKey.ToString()}] | Quit [{EndKey.ToString()}]";
     public static readonly string LoginHeader = $"Login | Confirm [{ConfirmKey.ToString()}] | Quit [{EndKey.ToString()}]";
 
-    public const string Header = $"Logged as: {Replacable} | [A] Add expense | [I] Add income | [C] New category | [D] Display balance | [F] Filter";
+    public const string Header = $"Logged as: {Replacable} | [A] Add expense | [I] Add income | [C] New category | [D] Display balance | [F] Filter | [J] JSON-Export/Import | [S] Statistics";
 
     public const string ExpenseHeader = @"|  ID  |   AMOUNT   |   CATEGORY   |       TIME       | DESCRIPTION";
 
@@ -38,9 +38,11 @@ Quit [{EndKey.ToString()}]";
 
     public static readonly string AddCategoryHeader = $"Adding Category | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
 
-    public static readonly string FilterHeader = $"Setting filters | [P] Pick category | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
-    public const string FilterCategorySelected = "\u2714";
-    public const string FilterCategoryNotSelcted = "\ud800\udd02";
+    public static readonly string FilterHeader = $"Setting filters | [P] Pick category | [R] Reset | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
+    public const string FilterCategorySelected = "\u25a0";
+    public const string FilterCategoryNotSelected = "\u25a0";
+
+    public static readonly string ExportImportHeader = $"JSON Export/Import | [E] Export | [I] Import | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
 }
 
 public static class Utils {

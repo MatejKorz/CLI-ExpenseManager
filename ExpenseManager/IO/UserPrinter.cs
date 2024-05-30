@@ -1,6 +1,13 @@
 using System.Text;
 using ExpenseManager.Data;
 using ExpenseManager.Models;
+using ScottPlot;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using ScottPlot.Palettes;
 
 namespace ExpenseManager.IO;
 
@@ -13,7 +20,6 @@ public class UserPrinter {
         _user = user;
         _categories = categories;
         _filter = filter;
-
     }
 
     public void DisplayHeader(string error = "") {
@@ -23,26 +29,19 @@ public class UserPrinter {
     }
 
     private void DisplayExpense(Expense expense, bool selected = false) {
-        var foreground = Console.ForegroundColor;
-        var background = Console.BackgroundColor;
-        if (selected) {
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.BackgroundColor = expense.Amount > 0 ? ConsoleColor.DarkGreen : ConsoleColor.Red;
-        }
+        ConsoleColor expenseColor = expense.Amount > 0 ? ConsoleColor.DarkGreen : ConsoleColor.Red;
+        string idString = $"| {expense.Id,+4} | ";
+        string expenseString = $"{expense.Amount,+10:0.00}";
+        string restString = $" | {_categories[expense.CategoryId],+12} | {expense.DateTime,+16} | {expense.Description}";
 
-        Console.Write($"| {expense.Id, +4} | ");
-        var foregroundInside = Console.ForegroundColor;
-        if (!selected) {
-            Console.ForegroundColor = expense.Amount > 0 ? ConsoleColor.DarkGreen : ConsoleColor.Red;
-        }
-        // TODO - FORMATING
-        Console.Write($"{expense.Amount, +10:0.00}");
-        Console.ForegroundColor = foregroundInside;
-        Console.WriteLine($" | {_categories[expense.CategoryId], +12} | {expense.DateTime, +16} | {expense.Description}");
         if (selected) {
-            Console.BackgroundColor = background;
-            Console.ForegroundColor = foreground;
+            Highlighter.WriteLine(idString + expenseString + restString, ConsoleColor.Black, expenseColor);
+        } else {
+            Highlighter.Write(idString);
+            Highlighter.Write(expenseString, expenseColor);
+            Highlighter.WriteLine(restString);
         }
+        Console.ResetColor();
     }
 
     private void DisplayExpenses(List<Expense> expenses, int index) {
@@ -76,6 +75,8 @@ public class UserPrinter {
             case Constants.EndKey : return ECommands.Quit;
             case ConsoleKey.D : return ECommands.DisplayBalance;
             case ConsoleKey.C : return ECommands.AddCategory;
+            case ConsoleKey.J : return ECommands.ExportImport;
+            case ConsoleKey.S : return ECommands.Statistics;
             default: return ECommands.Invalid;
         }
 
@@ -83,28 +84,10 @@ public class UserPrinter {
     }
 
     private void DisplayAddingExpense(string amount, string category, string description, string dateTime, int active) {
-        var foreground = Console.ForegroundColor;
-        var background = Console.BackgroundColor;
+        string[] fields = new[] { amount, category, description, dateTime};
         for (int i = 0; i < Constants.AddExpenseLines.Count; ++i) {
-            if (i == active) {
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.BackgroundColor = ConsoleColor.White;
-            }
-            Console.Write(Constants.AddExpenseLines[i]);
-            switch (i) {
-                case 0: Console.WriteLine(amount);
-                    break;
-                case 1: Console.WriteLine(category);
-                    break;
-                case 2: Console.WriteLine(description);
-                    break;
-                case 3: Console.WriteLine(dateTime);
-                    break;
-            }
-            if (i == active) {
-                Console.BackgroundColor = background;
-                Console.ForegroundColor = foreground;
-            }
+            Highlighter.Write(Constants.AddExpenseLines[i], active == i ? ConsoleColor.Black : null, active == i ? ConsoleColor.White : null);
+            Highlighter.WriteLine(fields[i], active == i ? ConsoleColor.Black : null, active == i ? ConsoleColor.White : null);
         }
     }
 
@@ -202,28 +185,15 @@ public class UserPrinter {
     }
 
     private void DisplayFilterCategory(int id, string name, bool selected = false) {
-        var foreground = Console.ForegroundColor;
-        var background = Console.BackgroundColor;
-        if (selected) {
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.BackgroundColor = ConsoleColor.White;
-        }
-        Console.Write($"{name} ");
-        string symbol;
-        var foregoundInner = Console.ForegroundColor;
-        if (_filter.Categories[id]) {
-            Console.ForegroundColor = ConsoleColor.DarkGreen;
-            symbol = Constants.FilterCategorySelected;
-        } else {
-            Console.ForegroundColor = ConsoleColor.DarkRed;
-            symbol = Constants.FilterCategoryNotSelcted;
-        }
-        Console.WriteLine(symbol);
-        Console.ForegroundColor = foregoundInner;
+        string symbol = _filter.Categories[id] ? Constants.FilterCategorySelected : Constants.FilterCategoryNotSelected;
+        ConsoleColor symbolColor = _filter.Categories[id] ? ConsoleColor.DarkGreen : ConsoleColor.DarkRed;
 
         if (selected) {
-            Console.ForegroundColor = foreground;
-            Console.BackgroundColor = background;
+            Highlighter.Write($"{name} ", ConsoleColor.Black, ConsoleColor.White);
+            Highlighter.WriteLine($"{symbol}", symbolColor, ConsoleColor.White);
+        } else {
+            Highlighter.Write($"{name} ");
+            Highlighter.WriteLine($"{symbol}", symbolColor);
         }
     }
     private void DisplayFilterCategories(int index) {
@@ -249,17 +219,17 @@ public class UserPrinter {
 
     public Filter SetupFilter() {
         string errString = "";
-        var datetimeFromString = new StringBuilder();
-        var datetimeToString = new StringBuilder();
+        var datetimeFromString = new StringBuilder(_filter.DateTimeFrom.GetValueOrDefault().ToString(Constants.DateTimeFormat));
+        var datetimeToString = new StringBuilder(_filter.DateTimeTo.GetValueOrDefault(DateTime.Now).ToString(Constants.DateTimeFormat));
         int activeIndex = 0;
-        var originalFilter = _filter;
+        var originalFilter = new Filter(_filter);
 
         while (true) {
             Console.Clear();
             Console.WriteLine(Constants.FilterHeader);
             Console.WriteLine(errString);
-            Console.WriteLine($"Date FROM: {datetimeFromString}");
-            Console.WriteLine($"Date TO:   {datetimeToString}");
+            Highlighter.WriteLine($"Date FROM: {datetimeFromString}", activeIndex == 0 ? ConsoleColor.Black : null, activeIndex == 0 ? ConsoleColor.White: null);
+            Highlighter.WriteLine($"Date TO:   {datetimeToString}", activeIndex == 1 ? ConsoleColor.Black : null, activeIndex == 1 ? ConsoleColor.White: null);
             DisplayFilterCategories(activeIndex - 2);
 
             var key = Console.ReadKey();
@@ -267,7 +237,27 @@ public class UserPrinter {
                 case Constants.EndKey:
                     _filter = originalFilter;
                     return _filter;
-                case Constants.ConfirmKey: return _filter;
+                case Constants.ConfirmKey:
+                    DateTime tmp;
+                    if (datetimeFromString.Length == 0) {
+                        _filter.DateTimeFrom = null;
+                    } else if (DateTime.TryParse(datetimeFromString.ToString(), out tmp)) {
+                        _filter.DateTimeFrom = tmp;
+                    } else {
+                        errString = Utils.MakeErrorMessage("invalid FROM date");
+                        break;
+                    }
+
+                    if (datetimeToString.Length == 0) {
+                        _filter.DateTimeTo = null;
+                    } else if (DateTime.TryParse(datetimeToString.ToString(), out tmp)) {
+                        _filter.DateTimeTo = tmp;
+                    } else {
+                        errString = Utils.MakeErrorMessage("invalid TO date");
+                        break;
+                    }
+
+                    return _filter;
                 case ConsoleKey.UpArrow : activeIndex = int.Max(activeIndex - 1, 0); break;
                 case ConsoleKey.DownArrow : activeIndex = int.Min(activeIndex + 1, _categories.Count + 2 - 1); break;
                 case ConsoleKey.P :
@@ -275,6 +265,10 @@ public class UserPrinter {
                         var (id, value) = _filter.Categories.ElementAt(activeIndex - 2);
                         _filter.Categories[id] = !value;
                     }
+                    break;
+                case ConsoleKey.R : _filter.ResetFilter();
+                    datetimeFromString = new StringBuilder(_filter.DateTimeFrom.GetValueOrDefault().ToString(Constants.DateTimeFormat));
+                    datetimeToString = new StringBuilder(_filter.DateTimeTo.GetValueOrDefault(DateTime.Now).ToString(Constants.DateTimeFormat));
                     break;
                 case ConsoleKey.Backspace :
                     if (activeIndex == 0 && datetimeFromString.Length > 0) {
@@ -293,6 +287,159 @@ public class UserPrinter {
                     } else {
                         errString = Utils.MakeErrorMessage("invalid key");
                     }
+                    break;
+            }
+        }
+    }
+
+    private string MakeGroupString(Expense e) {
+        string ret = DateTime.Parse(e.DateTime).Year.ToString() + ',' + DateTime.Parse(e.DateTime).Month.ToString();
+        return ret;
+    }
+    public void Statistics(List<Expense> expenses, Dictionary<int, string> categories) {
+        var groupByMonth = expenses.GroupBy(MakeGroupString).OrderBy(g => g.Key).ToDictionary(g => g.Key);
+
+        Dictionary<string, ValueTuple<decimal, decimal>> vals = new Dictionary<string, (decimal, decimal)>();
+        foreach (var (key, exps) in groupByMonth) {
+            decimal amountExpense = 0m;
+            decimal amountIncome = 0m;
+            foreach (var exp in exps) {
+                if (exp.Amount > 0) {
+                    amountIncome += exp.Amount;
+                } else {
+                    amountExpense += decimal.Abs(exp.Amount);
+                }
+            }
+            vals[key] = (amountExpense, amountIncome);
+        }
+
+        string[] names = vals.Keys.ToArray();
+        decimal[] expsArray = vals.Values.Select(v => v.Item1).ToArray();
+        decimal[] incArray = vals.Values.Select(v => v.Item2).ToArray();
+
+        var plt = new ScottPlot.Plot();
+
+        // Define the palette
+        Category10 palette = new Category10();
+
+        // Create bar plots for each set of values
+        List<ScottPlot.Bar> bars = new List<ScottPlot.Bar>();
+        for (int i = 0; i < names.Length; i++)
+        {
+            bars.Add(new ScottPlot.Bar
+            {
+                Position = i * 3 + 1,
+                Value = (double)expsArray[i],
+                FillColor = palette.GetColor(0)
+            });
+
+            bars.Add(new ScottPlot.Bar
+            {
+                Position = i * 3 + 2,
+                Value = (double)incArray[i],
+                FillColor = palette.GetColor(1)
+            });
+        }
+
+        // Add the bars to the plot
+        plt.Add.Bars(bars.ToArray());
+
+        // Build the legend manually
+        plt.Legend.IsVisible = true;
+        plt.Legend.Alignment = Alignment.UpperLeft;
+        plt.Legend.ManualItems.Add(new() { LabelText = "First Set", FillColor = palette.GetColor(0) });
+        plt.Legend.ManualItems.Add(new() { LabelText = "Second Set", FillColor = palette.GetColor(1) });
+
+        // Show group labels on the bottom axis
+        Tick[] ticks = names.Select((c, i) => new Tick(i * 3 + 1.5, c)).ToArray();
+        plt.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+        plt.Axes.Bottom.MajorTickStyle.Length = 0;
+        plt.HideGrid();
+
+        // Tell the plot to autoscale with no padding beneath the bars
+        plt.Axes.Margins(bottom: 0);
+
+        // Save the plot as an image file
+        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "barplot.png");
+        plt.SavePng(filePath, 800, 600);
+    }
+
+    public ValueTuple<string, bool>? ExportImport(string username) {
+        StringBuilder filepath = new StringBuilder();
+        int activeIndex = 0;
+        bool export = true;
+        string errString = "";
+        while (true) {
+            Console.Clear();
+            Console.WriteLine(Constants.ExportImportHeader);
+            Console.WriteLine(errString);
+            string status = export ? "EXPORT" : "IMPORT";
+            Highlighter.WriteLine($"Status: {status}", activeIndex == 0 ? ConsoleColor.Black : null, activeIndex == 0 ? ConsoleColor.White: null);
+            Highlighter.WriteLine($"Filepath: {filepath}", activeIndex == 1 ? ConsoleColor.Black : null, activeIndex == 1 ? ConsoleColor.White: null);
+            var key = Console.ReadKey();
+            switch (key.Key) {
+                case Constants.EndKey : return null;
+                case Constants.ConfirmKey :
+                    if (export) {
+                        if (Directory.Exists(filepath.ToString())) {
+                            filepath = new StringBuilder(Path.Combine(filepath.ToString(), $"{username}_export.json"));
+                        }
+
+                        if (File.Exists(filepath.ToString())) {
+                            Console.Write($"Overwrite file {filepath}? Y/n: ");
+                            if (Console.ReadKey().Key != ConsoleKey.Y) {
+                                Console.WriteLine("aborting");
+                                return null;
+                            }
+                            return (filepath.ToString(), export);
+                        }
+                    }
+                    if (!export) {
+                        if (!File.Exists(filepath.ToString())) {
+                            errString = Utils.MakeErrorMessage("file does not exist");
+                            break;
+                        }
+
+                        if (Path.GetExtension(filepath.ToString()).Equals("json", StringComparison.OrdinalIgnoreCase)) {
+                            errString = Utils.MakeErrorMessage("file is not json");
+                            break;
+                        }
+
+                        return (filepath.ToString(), export);
+                    }
+
+                    return (filepath.ToString(), export);
+                case ConsoleKey.UpArrow : activeIndex = int.Max(0, activeIndex - 1);
+                    break;
+                case ConsoleKey.DownArrow : activeIndex = int.Min(1, activeIndex + 1);
+                    break;
+                case ConsoleKey.RightArrow :
+                    if (activeIndex == 0) {
+                        export = !export;
+                    }
+                    break;
+                case ConsoleKey.LeftArrow :
+                    if (activeIndex == 0) {
+                        export = !export;
+                    }
+                    break;
+                case ConsoleKey.Backspace :
+                    if (activeIndex == 0) {
+                        errString = Utils.MakeErrorMessage("invalid key");
+                        break;
+                    }
+
+                    if (filepath.Length > 0) {
+                        filepath.Remove(filepath.Length - 1, 1);
+                    }
+                    break;
+                default:
+                    // TODO characters to constants
+                    if (activeIndex != 1 || !char.IsLetterOrDigit(key.KeyChar) && !"/.-_".Contains(key.KeyChar)) {
+                        errString = Utils.MakeErrorMessage("invalid key");
+                        break;
+                    }
+                    filepath.Append(key.KeyChar);
                     break;
             }
         }

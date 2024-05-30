@@ -13,7 +13,6 @@ public class LoginManager {
     public LoginManager(DatabaseController dbController) {
         _dbController = dbController;
         _starterPrinter = new StarterPrinter();
-
     }
 
     public async void Register() {

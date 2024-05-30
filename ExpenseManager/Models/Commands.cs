@@ -7,8 +7,10 @@ public enum ECommands {
     AddExpense,
     AddIncome,
     AddCategory,
+    ExportImport,
     Filter,
     DisplayBalance,
+    Statistics,
     Invalid,
     Quit
 }

@@ -16,6 +16,12 @@ public class Filter {
         DateTimeTo = null;
     }
 
+    public Filter(Filter other) {
+        DateTimeFrom = other.DateTimeFrom;
+        DateTimeTo = other.DateTimeTo;
+        Categories = new Dictionary<int, bool>(other.Categories);
+    }
+
     public bool ExpenseBelongs(Expense expense) {
         DateTime expenseDatetime = DateTime.Parse(expense.DateTime);
         if (DateTimeFrom != null && expenseDatetime < DateTimeFrom) {

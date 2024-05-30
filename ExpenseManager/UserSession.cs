@@ -1,4 +1,3 @@
-using System.Globalization;
 using ExpenseManager.Data;
 using ExpenseManager.IO;
 using ExpenseManager.Models;
@@ -25,14 +24,13 @@ public class UserSession {
         return sum;
     }
 
-    public async void RunSession() {
+    public async Task RunSession() {
         UserPrinter printer = new UserPrinter(_user, in _categories, ref _filter);
         int currentExpenseIndex = 0;
         string errString = "";
         while (true) {
             Console.Clear();
             printer.DisplayHeader(errString);
-            errString = "";
 
             var displayedExpenses = _expenses.Where(e => _filter.ExpenseBelongs(e)).ToList();
             ECommands command = printer.UserSession(displayedExpenses, ref currentExpenseIndex);
@@ -73,6 +71,29 @@ public class UserSession {
                     break;
                 case ECommands.DisplayBalance:
                     errString = Constants.DisplayAmount.Replace(Constants.Replacable, CalculateBalance().ToString("0.00"));
+                    break;
+                case ECommands.ExportImport:
+                    var ret = printer.ExportImport(_user.Username);
+                    if (!ret.HasValue) {
+                        break;
+                    }
+                    var (filepath, isExport) = ret.Value;
+                    if (isExport) {
+                        var exporter = new JsonController();
+                        errString = await exporter.Serialize(filepath, _expenses, _categories);
+                    } else {
+                        var importer = new JsonController();
+                        errString = await importer.Deserialize(_user.Id, filepath, _controller, _categories);
+                        _expenses = _controller.GetExpenses(_user.Id);
+                        var newCat = await _controller.GetUserCategories(_user.Id);
+                        foreach (var (id, name) in newCat) {
+                            _categories.TryAdd(id, name);
+                        }
+                        _filter.UpdateFilterCategory(_categories);
+                    }
+                    break;
+                case ECommands.Statistics:
+                    printer.Statistics(_expenses, _categories);
                     break;
                 case ECommands.Quit: return;
             }

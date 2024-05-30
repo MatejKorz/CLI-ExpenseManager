@@ -36,22 +36,20 @@ public class StarterPrinter {
             Console.Clear();
             Console.WriteLine(login ? Constants.LoginHeader : Constants.RegisterHeader);
             Console.WriteLine(errString);
-            var foreground = Console.ForegroundColor;
-            var background = Console.BackgroundColor;
+
+            string username = $"Username: {userStringBuild}";
             if (active == 0) {
-                Console.BackgroundColor = ConsoleColor.White;
-                Console.ForegroundColor = ConsoleColor.Black;
+                Highlighter.WriteLine(username, ConsoleColor.Black, ConsoleColor.White);
+            } else {
+                Highlighter.WriteLine(username);
             }
-            Console.WriteLine($"Username: {userStringBuild}");
-            Console.ForegroundColor = foreground;
-            Console.BackgroundColor = background;
+
+            string password = $"Password: {new string('*', passwrdSecString.Length)}";
             if (active == 1) {
-                Console.BackgroundColor = ConsoleColor.White;
-                Console.ForegroundColor = ConsoleColor.Black;
+                Highlighter.WriteLine(password, ConsoleColor.Black, ConsoleColor.White);
+            } else {
+                Highlighter.WriteLine(password);
             }
-            Console.WriteLine($"Password: {new string('*', passwrdSecString.Length)}");
-            Console.ForegroundColor = foreground;
-            Console.BackgroundColor = background;
 
             errString = "";
             var key = Console.ReadKey();

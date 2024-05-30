@@ -13,6 +13,7 @@ class Program {
         StarterPrinter mainStarterPrinter = new StarterPrinter();
 
         while (true) {
+            loggedUserId = -1;
             Console.Clear();
             ECommands command = mainStarterPrinter.Startup();
             switch (command) {
@@ -41,10 +42,7 @@ class Program {
                 continue;
             }
             var session = new UserSession(databaseController, loggedUser);
-            session.RunSession();
-
-
-            loggedUserId = -1;
+            await session.RunSession();
         }
     }
 }

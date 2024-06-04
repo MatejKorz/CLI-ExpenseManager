@@ -8,15 +8,13 @@ public class UserSession {
     private readonly DatabaseController _controller;
     private readonly User _user;
     private List<Expense> _expenses;
-    private readonly Dictionary<int, string> _categories;
     private Filter _filter;
 
     public UserSession(DatabaseController controller, User user) {
         _controller = controller;
         _user = user;
         _expenses = _controller.GetExpenses(user.Id);
-        _categories = _controller.GetUserCategories(user.Id).Result;
-        _filter = new Filter(_categories);
+        _filter = new Filter(_controller.GetUserCategories(_user.Id).Result);
     }
 
     private decimal CalculateBalance() {
@@ -25,13 +23,13 @@ public class UserSession {
     }
 
     public async Task RunSession() {
-        UserPrinter printer = new UserPrinter(_user, in _categories, ref _filter);
+        UserPrinter printer = new UserPrinter(_user, ref _filter, _controller);
         int currentExpenseIndex = 0;
         string errString = "";
         while (true) {
             Console.Clear();
             printer.DisplayHeader(errString);
-
+            errString = "";
             var displayedExpenses = _expenses.Where(e => _filter.ExpenseBelongs(e)).ToList();
             ECommands command = printer.UserSession(displayedExpenses, ref currentExpenseIndex);
             Expense? expense;
@@ -53,20 +51,16 @@ public class UserSession {
                     }
                     break;
                 case ECommands.Filter:
+                    _filter.UpdateFilterCategory(_controller.GetUserCategories(_user.Id).Result);
                     var newFilter = printer.SetupFilter();
-                    _filter = newFilter;
+                    _filter = newFilter.Result;
                     // must reset because numbers of expenses change
                     currentExpenseIndex = 0;
                     break;
                 case ECommands.AddCategory:
-                    string? categoryName = printer.AddCategory();
-                    if (categoryName != null) {
-                        await _controller.AddUserCategory(_user.Id, categoryName);
-                        var newCategory = await _controller.GetUserCategory(_user.Id, categoryName);
-                        if (newCategory != null) {
-                            _categories[newCategory.Id] = newCategory.Name;
-                        }
-                        _filter.UpdateFilterCategory(_categories);
+                    var name = await printer.AddCategory();
+                    if (name != null) {
+                        await _controller.AddUserCategory(_user.Id, name);
                     }
                     break;
                 case ECommands.DisplayBalance:
@@ -80,20 +74,17 @@ public class UserSession {
                     var (filepath, isExport) = ret.Value;
                     if (isExport) {
                         var exporter = new JsonController();
-                        errString = await exporter.Serialize(filepath, _expenses, _categories);
+                        var categories = await _controller.GetUserCategories(_user.Id);
+                        errString = await exporter.Serialize(filepath, _expenses, categories);
                     } else {
                         var importer = new JsonController();
-                        errString = await importer.Deserialize(_user.Id, filepath, _controller, _categories);
+                        errString = await importer.Deserialize(_user.Id, filepath, _controller);
                         _expenses = _controller.GetExpenses(_user.Id);
-                        var newCat = await _controller.GetUserCategories(_user.Id);
-                        foreach (var (id, name) in newCat) {
-                            _categories.TryAdd(id, name);
-                        }
-                        _filter.UpdateFilterCategory(_categories);
                     }
+                    _filter.UpdateFilterCategory(_controller.GetUserCategories(_user.Id).Result);
                     break;
                 case ECommands.Statistics:
-                    printer.Statistics(_expenses, _categories);
+                    errString = "[ export ] graph exported to " + printer.Statistics(_expenses, _user.Username);
                     break;
                 case ECommands.Quit: return;
             }

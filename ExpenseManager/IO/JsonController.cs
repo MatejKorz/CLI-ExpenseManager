@@ -29,8 +29,9 @@ public class JsonController {
         }
     }
 
-    public async Task<string> Deserialize(int userId, string filepath, DatabaseController dbController, Dictionary<int, string> categories) {
+    public async Task<string> Deserialize(int userId, string filepath, DatabaseController dbController) {
         try {
+            var categories = await dbController.GetUserCategories(userId);
             string json = await File.ReadAllTextAsync(filepath);
             var options = new JsonSerializerOptions {
                 PropertyNameCaseInsensitive = true

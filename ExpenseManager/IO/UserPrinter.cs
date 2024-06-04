@@ -2,24 +2,20 @@ using System.Text;
 using ExpenseManager.Data;
 using ExpenseManager.Models;
 using ScottPlot;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
-using System.Linq;
 using ScottPlot.Palettes;
+using ScottPlot.TickGenerators;
 
 namespace ExpenseManager.IO;
 
 public class UserPrinter {
     private User _user;
-    private Dictionary<int, string> _categories;
+    private DatabaseController _dbControler;
     private Filter _filter;
 
-    public UserPrinter(User user, in Dictionary<int, string> categories, ref Filter filter) {
+    public UserPrinter(User user, ref Filter filter, DatabaseController controller) {
         _user = user;
-        _categories = categories;
         _filter = filter;
+        _dbControler = controller;
     }
 
     public void DisplayHeader(string error = "") {
@@ -28,11 +24,11 @@ public class UserPrinter {
         Console.WriteLine(error);
     }
 
-    private void DisplayExpense(Expense expense, bool selected = false) {
+    private void DisplayExpense(Expense expense, Dictionary<int, string> categories,bool selected = false) {
         ConsoleColor expenseColor = expense.Amount > 0 ? ConsoleColor.DarkGreen : ConsoleColor.Red;
         string idString = $"| {expense.Id,+4} | ";
         string expenseString = $"{expense.Amount,+10:0.00}";
-        string restString = $" | {_categories[expense.CategoryId],+12} | {expense.DateTime,+16} | {expense.Description}";
+        string restString = $" | {categories[expense.CategoryId],+12} | {expense.DateTime,+16} | {expense.Description}";
 
         if (selected) {
             Highlighter.WriteLine(idString + expenseString + restString, ConsoleColor.Black, expenseColor);
@@ -44,7 +40,8 @@ public class UserPrinter {
         Console.ResetColor();
     }
 
-    private void DisplayExpenses(List<Expense> expenses, int index) {
+    private async void DisplayExpenses(List<Expense> expenses, int index) {
+        var categories = await _dbControler.GetUserCategories(_user.Id);
         var (topIndex, bottomIndex) = (index - Constants.ExpensePerScreen / 2, index + Constants.ExpensePerScreen / 2);
         if (expenses.Count < Constants.ExpensePerScreen) {
             topIndex = 0;
@@ -58,7 +55,7 @@ public class UserPrinter {
         }
 
         for (int i = topIndex; i < bottomIndex; ++i) {
-            DisplayExpense(expenses[i], i == index);
+            DisplayExpense(expenses[i], categories, i == index);
         }
     }
 
@@ -84,7 +81,7 @@ public class UserPrinter {
     }
 
     private void DisplayAddingExpense(string amount, string category, string description, string dateTime, int active) {
-        string[] fields = new[] { amount, category, description, dateTime};
+        string[] fields = { amount, category, description, dateTime};
         for (int i = 0; i < Constants.AddExpenseLines.Count; ++i) {
             Highlighter.Write(Constants.AddExpenseLines[i], active == i ? ConsoleColor.Black : null, active == i ? ConsoleColor.White : null);
             Highlighter.WriteLine(fields[i], active == i ? ConsoleColor.Black : null, active == i ? ConsoleColor.White : null);
@@ -99,13 +96,13 @@ public class UserPrinter {
         int categoryIndex = 0;
         string errString = "";
         var options = new List<StringBuilder?> { amountString, null, description, dateTimeString };
-        _categories = _categories.OrderBy(c => c.Value).ToDictionary();
+        var categories = _dbControler.GetUserCategories(_user.Id).Result.OrderBy(c => c.Value).ToDictionary();
 
         while (true) {
             Console.Clear();
             Console.WriteLine(income ? Constants.AddIncomeHeader : Constants.AddExpenseHeader);
             Console.WriteLine(errString);
-            DisplayAddingExpense(amountString.ToString(), _categories.ElementAt(categoryIndex).Value, description.ToString(), dateTimeString.ToString(), activeIndex);
+            DisplayAddingExpense(amountString.ToString(), categories.ElementAt(categoryIndex).Value, description.ToString(), dateTimeString.ToString(), activeIndex);
             ConsoleKeyInfo key = Console.ReadKey();
             switch (key.Key) {
                 case ConsoleKey.UpArrow: activeIndex = int.Max(activeIndex - 1, 0);
@@ -114,7 +111,7 @@ public class UserPrinter {
                     break;
                 case ConsoleKey.RightArrow:
                     if (activeIndex == 1) {
-                        categoryIndex = int.Min(categoryIndex + 1, _categories.Count - 1);
+                        categoryIndex = int.Min(categoryIndex + 1, categories.Count - 1);
                     }
                     break;
                 case ConsoleKey.LeftArrow:
@@ -142,7 +139,7 @@ public class UserPrinter {
                         break;
                     }
 
-                    return new Expense(0, _user.Id, amount, _categories.ElementAt(categoryIndex).Key, description.ToString(),
+                    return new Expense(0, _user.Id, amount, categories.ElementAt(categoryIndex).Key, description.ToString(),
                         dateTime.ToString(Constants.DateTimeFormat));
                 default:
                     if (options[activeIndex] != null) {
@@ -154,14 +151,16 @@ public class UserPrinter {
         }
     }
 
-    public string? AddCategory() {
+    public async Task<string?> AddCategory() {
         StringBuilder categoryName = new StringBuilder();
         string errString = "";
+        var categories = await _dbControler.GetUserCategories(_user.Id);
 
         while (true) {
             Console.Clear();
             Console.WriteLine(Constants.AddCategoryHeader);
             Console.WriteLine(errString);
+            Console.Write("Your new category: ");
             Console.WriteLine(categoryName.ToString());
             var key = Console.ReadKey();
             switch (key.Key) {
@@ -171,12 +170,16 @@ public class UserPrinter {
                         errString = Utils.MakeErrorMessage("category can not contain space");
                         break;
                     }
-                    if (_categories.ContainsValue(categoryName.ToString())) {
+                    if (categories.ContainsValue(categoryName.ToString())) {
                         errString = Utils.MakeErrorMessage("category already present");
                         break;
                     }
                     return categoryName.ToString();
-                case ConsoleKey.Backspace : categoryName.Remove(categoryName.Length - 1, 1); break;
+                case ConsoleKey.Backspace :
+                    if (categoryName.Length > 0) {
+                        categoryName.Remove(categoryName.Length - 1, 1);
+                    }
+                    break;
                 default:
                     categoryName.Append(key.KeyChar);
                     break;
@@ -196,41 +199,44 @@ public class UserPrinter {
             Highlighter.WriteLine($"{symbol}", symbolColor);
         }
     }
-    private void DisplayFilterCategories(int index) {
+    private void DisplayFilterCategories(int index, Dictionary<int, string> categories) {
         // dates are displayed above categories so not always should category be highlighted
+
         int correctedIndex = int.Max(index, 0);
         var (topIndex, bottomIndex) = (correctedIndex - Constants.CategoriesPerScreen / 2, correctedIndex + Constants.CategoriesPerScreen / 2);
-        if (_categories.Count < Constants.CategoriesPerScreen) {
+        if (categories.Count < Constants.CategoriesPerScreen) {
             topIndex = 0;
-            bottomIndex = _categories.Count;
+            bottomIndex = categories.Count;
         } else if (topIndex < 0) {
             bottomIndex += int.Abs(topIndex);
             topIndex = 0;
-        } else if (bottomIndex >= _categories.Count) {
-            topIndex = _categories.Count - Constants.CategoriesPerScreen;
-            bottomIndex = _categories.Count;
+        } else if (bottomIndex >= categories.Count) {
+            topIndex = categories.Count - Constants.CategoriesPerScreen;
+            bottomIndex = categories.Count;
         }
 
         for (int i = topIndex; i < bottomIndex; ++i) {
-            var (id, name) = _categories.ElementAt(i);
+            var (id, name) = categories.ElementAt(i);
             DisplayFilterCategory(id, name, i == index);
         }
     }
 
-    public Filter SetupFilter() {
+    public async Task<Filter> SetupFilter() {
         string errString = "";
         var datetimeFromString = new StringBuilder(_filter.DateTimeFrom.GetValueOrDefault().ToString(Constants.DateTimeFormat));
         var datetimeToString = new StringBuilder(_filter.DateTimeTo.GetValueOrDefault(DateTime.Now).ToString(Constants.DateTimeFormat));
         int activeIndex = 0;
         var originalFilter = new Filter(_filter);
+        var categories = await _dbControler.GetUserCategories(_user.Id);
 
         while (true) {
             Console.Clear();
             Console.WriteLine(Constants.FilterHeader);
             Console.WriteLine(errString);
+            errString = "";
             Highlighter.WriteLine($"Date FROM: {datetimeFromString}", activeIndex == 0 ? ConsoleColor.Black : null, activeIndex == 0 ? ConsoleColor.White: null);
             Highlighter.WriteLine($"Date TO:   {datetimeToString}", activeIndex == 1 ? ConsoleColor.Black : null, activeIndex == 1 ? ConsoleColor.White: null);
-            DisplayFilterCategories(activeIndex - 2);
+            DisplayFilterCategories(activeIndex - 2, categories);
 
             var key = Console.ReadKey();
             switch (key.Key) {
@@ -259,7 +265,7 @@ public class UserPrinter {
 
                     return _filter;
                 case ConsoleKey.UpArrow : activeIndex = int.Max(activeIndex - 1, 0); break;
-                case ConsoleKey.DownArrow : activeIndex = int.Min(activeIndex + 1, _categories.Count + 2 - 1); break;
+                case ConsoleKey.DownArrow : activeIndex = int.Min(activeIndex + 1, categories.Count + 2 - 1); break;
                 case ConsoleKey.P :
                     if (activeIndex >= 2) {
                         var (id, value) = _filter.Categories.ElementAt(activeIndex - 2);
@@ -293,10 +299,10 @@ public class UserPrinter {
     }
 
     private string MakeGroupString(Expense e) {
-        string ret = DateTime.Parse(e.DateTime).Year.ToString() + ',' + DateTime.Parse(e.DateTime).Month.ToString();
+        string ret = DateTime.Parse(e.DateTime).Year.ToString() + ',' + DateTime.Parse(e.DateTime).Month;
         return ret;
     }
-    public void Statistics(List<Expense> expenses, Dictionary<int, string> categories) {
+    public string Statistics(List<Expense> expenses, string username) {
         var groupByMonth = expenses.GroupBy(MakeGroupString).OrderBy(g => g.Key).ToDictionary(g => g.Key);
 
         Dictionary<string, ValueTuple<decimal, decimal>> vals = new Dictionary<string, (decimal, decimal)>();
@@ -317,27 +323,27 @@ public class UserPrinter {
         decimal[] expsArray = vals.Values.Select(v => v.Item1).ToArray();
         decimal[] incArray = vals.Values.Select(v => v.Item2).ToArray();
 
-        var plt = new ScottPlot.Plot();
+        var plt = new Plot();
 
         // Define the palette
         Category10 palette = new Category10();
 
         // Create bar plots for each set of values
-        List<ScottPlot.Bar> bars = new List<ScottPlot.Bar>();
+        List<Bar> bars = new List<Bar>();
         for (int i = 0; i < names.Length; i++)
         {
-            bars.Add(new ScottPlot.Bar
+            bars.Add(new Bar
             {
                 Position = i * 3 + 1,
                 Value = (double)expsArray[i],
-                FillColor = palette.GetColor(0)
+                FillColor = palette.GetColor(3)
             });
 
-            bars.Add(new ScottPlot.Bar
+            bars.Add(new Bar
             {
                 Position = i * 3 + 2,
                 Value = (double)incArray[i],
-                FillColor = palette.GetColor(1)
+                FillColor = palette.GetColor(2)
             });
         }
 
@@ -347,12 +353,12 @@ public class UserPrinter {
         // Build the legend manually
         plt.Legend.IsVisible = true;
         plt.Legend.Alignment = Alignment.UpperLeft;
-        plt.Legend.ManualItems.Add(new() { LabelText = "First Set", FillColor = palette.GetColor(0) });
-        plt.Legend.ManualItems.Add(new() { LabelText = "Second Set", FillColor = palette.GetColor(1) });
+        plt.Legend.ManualItems.Add(new() { LabelText = "Expenses", FillColor = palette.GetColor(3) });
+        plt.Legend.ManualItems.Add(new() { LabelText = "Incomes", FillColor = palette.GetColor(2) });
 
         // Show group labels on the bottom axis
         Tick[] ticks = names.Select((c, i) => new Tick(i * 3 + 1.5, c)).ToArray();
-        plt.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+        plt.Axes.Bottom.TickGenerator = new NumericManual(ticks);
         plt.Axes.Bottom.MajorTickStyle.Length = 0;
         plt.HideGrid();
 
@@ -360,8 +366,9 @@ public class UserPrinter {
         plt.Axes.Margins(bottom: 0);
 
         // Save the plot as an image file
-        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "barplot.png");
+        string filePath = Path.Combine(Directory.GetCurrentDirectory(), $"{username}_expenseGraph.png");
         plt.SavePng(filePath, 800, 600);
+        return filePath;
     }
 
     public ValueTuple<string, bool>? ExportImport(string username) {

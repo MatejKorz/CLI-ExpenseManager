@@ -1,7 +1,6 @@
 namespace ExpenseManager.Data;
 
 public static class Constants {
-    public const int ExpensePerScreen = 12;
     public const int CategoriesPerScreen = 10;
     public const ConsoleKey ConfirmKey = ConsoleKey.Enter;
     public const ConsoleKey EndKey = ConsoleKey.Escape;
@@ -34,7 +33,7 @@ Quit [{EndKey.ToString()}]";
     private const string AddExpenseDate = "DateTime: ";
     public static readonly List<string> AddExpenseLines = [AddExpenseAmount, AddExpenseCategory, AddExpenseDescription, AddExpenseDate];
 
-    public const string DisplayAmount = $"Current balance is {Replacable}";
+    public const string DisplayAmount = $"[ balance ] Current balance is {Replacable}";
 
     public static readonly string AddCategoryHeader = $"Adding Category | [{ConfirmKey.ToString()}] Confirm | [{EndKey.ToString()}] Quit ";
 

@@ -28,6 +28,7 @@ public class UserSession {
         string errString = "";
         while (true) {
             Console.Clear();
+            Console.Clear();
             printer.DisplayHeader(errString);
             errString = "";
             var displayedExpenses = _expenses.Where(e => _filter.ExpenseBelongs(e)).ToList();
@@ -62,6 +63,7 @@ public class UserSession {
                     if (name != null) {
                         await _controller.AddUserCategory(_user.Id, name);
                     }
+                    _filter.UpdateFilterCategory(_controller.GetUserCategories(_user.Id).Result);
                     break;
                 case ECommands.DisplayBalance:
                     errString = Constants.DisplayAmount.Replace(Constants.Replacable, CalculateBalance().ToString("0.00"));
@@ -86,7 +88,14 @@ public class UserSession {
                 case ECommands.Statistics:
                     errString = "[ export ] graph exported to " + printer.Statistics(_expenses, _user.Username);
                     break;
-                case ECommands.Quit: return;
+                case ECommands.Quit:
+                    Console.Clear();
+                    Console.Clear();
+                    Highlighter.Write("Do you want to quit? [y/n]: ", ConsoleColor.Black, ConsoleColor.White);
+                    if (Console.ReadKey().Key == ConsoleKey.Y) {
+                        return;
+                    }
+                    break;
             }
         }
     }

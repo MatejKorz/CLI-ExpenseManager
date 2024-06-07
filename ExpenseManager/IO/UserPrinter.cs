@@ -41,16 +41,17 @@ public class UserPrinter {
     }
 
     private async void DisplayExpenses(List<Expense> expenses, int index) {
+        var expensePerScreen = Console.WindowHeight - 4; // header + errorLine + tab header
         var categories = await _dbControler.GetUserCategories(_user.Id);
-        var (topIndex, bottomIndex) = (index - Constants.ExpensePerScreen / 2, index + Constants.ExpensePerScreen / 2);
-        if (expenses.Count < Constants.ExpensePerScreen) {
+        var (topIndex, bottomIndex) = (index - expensePerScreen / 2, index + expensePerScreen / 2);
+        if (expenses.Count < expensePerScreen) {
             topIndex = 0;
             bottomIndex = expenses.Count;
         } else if (topIndex < 0) {
             bottomIndex += int.Abs(topIndex);
             topIndex = 0;
         } else if (bottomIndex >= expenses.Count) {
-            topIndex = expenses.Count - Constants.ExpensePerScreen;
+            topIndex = expenses.Count - expensePerScreen;
             bottomIndex = expenses.Count;
         }
 
@@ -201,17 +202,17 @@ public class UserPrinter {
     }
     private void DisplayFilterCategories(int index, Dictionary<int, string> categories) {
         // dates are displayed above categories so not always should category be highlighted
-
+        var categoriesPerScreen = Console.WindowHeight - 5; // header + errLine + 2*date
         int correctedIndex = int.Max(index, 0);
-        var (topIndex, bottomIndex) = (correctedIndex - Constants.CategoriesPerScreen / 2, correctedIndex + Constants.CategoriesPerScreen / 2);
-        if (categories.Count < Constants.CategoriesPerScreen) {
+        var (topIndex, bottomIndex) = (correctedIndex - categoriesPerScreen / 2, correctedIndex + categoriesPerScreen / 2);
+        if (categories.Count < categoriesPerScreen) {
             topIndex = 0;
             bottomIndex = categories.Count;
         } else if (topIndex < 0) {
             bottomIndex += int.Abs(topIndex);
             topIndex = 0;
         } else if (bottomIndex >= categories.Count) {
-            topIndex = categories.Count - Constants.CategoriesPerScreen;
+            topIndex = categories.Count - categoriesPerScreen;
             bottomIndex = categories.Count;
         }
 

@@ -11,6 +11,7 @@ class Program {
         var loginManager = new LoginManager(databaseController);
         int loggedUserId = -1;
         StarterPrinter mainStarterPrinter = new StarterPrinter();
+        Console.CursorVisible = false;
 
         while (true) {
             loggedUserId = -1;
@@ -24,10 +25,10 @@ class Program {
                     loggedUserId = await loginManager.Login();
                     break;
                 case ECommands.Quit:
-                    // TODO free everything
                     databaseController.Deconstruct();
                     Console.Clear();
-                    Console.Write("Goodbye");
+                    Console.Clear();
+                    Console.Write("Thank you for using ExpanseManager");
                     return;
             }
 

@@ -29,6 +29,7 @@ public class DatabaseController {
     }
 
     public void Deconstruct() {
+        _db.SaveChanges();
         _db.Dispose();
     }
 

@@ -43,7 +43,7 @@ public class Filter {
 
     public void UpdateFilterCategory(Dictionary<int, string> allCategories) {
         foreach (var (id, _) in allCategories) {
-            Categories[id] = true;
+            Categories.TryAdd(id, true);
         }
     }
     public void ResetFilter() {

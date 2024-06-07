@@ -367,6 +367,7 @@ public class UserPrinter {
         plt.Axes.Margins(bottom: 0);
 
         // Save the plot as an image file
+        plt.Axes.Title.Label.Text = $"{username} expenses";
         string filePath = Path.Combine(Directory.GetCurrentDirectory(), $"{username}_expenseGraph.png");
         plt.SavePng(filePath, 800, 600);
         return filePath;

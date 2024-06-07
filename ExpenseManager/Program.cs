@@ -9,12 +9,11 @@ class Program {
         string databasePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.db");
         var databaseController = new DatabaseController(databasePath);
         var loginManager = new LoginManager(databaseController);
-        int loggedUserId = -1;
         StarterPrinter mainStarterPrinter = new StarterPrinter();
         Console.CursorVisible = false;
 
         while (true) {
-            loggedUserId = -1;
+            int loggedUserId = -1;
             Console.Clear();
             ECommands command = mainStarterPrinter.Startup();
             switch (command) {
